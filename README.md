@@ -1,6 +1,6 @@
 # frequent-closed-itemsets-Genetic-Algorithm
 
-Parameters that need to be altered: max_improvement_count (number of times crossover is performed without obtaining a offspring not already present in the sub population, before moving to the next generation)
+Parameters that need to be altered: max_improvement_count (number of times crossover is performed without obtaining a offspring not already present in the sub population, before moving to the next generation) // Frin testing, output time is highly dependent on this parameter
 
 NOTES:
 - Selection of parents is ranked selection, based on frequency (more frequency -> higher chance of getting picked for crossing)
@@ -36,8 +36,8 @@ OUTPUT:<br />
  Number of transactions: 5<br />
  Number of frequent 1-items  : 4<br />
  Number of closed  itemsets: 5<br />
- Total time ~: 4 ms<br />
- Max memory:6.931571960449219 MB<br />
+ Total time ~: 3 ms<br />
+ Max memory:6.4420013427734375 MB<br />
  
  ========== NAFCP - STATS ===========<br />
  Minsup : 2<br />
@@ -85,8 +85,8 @@ OUTPUT:<br />
  Number of transactions: 11<br />
  Number of frequent 1-items  : 8<br />
  Number of closed  itemsets: 16<br />
- Total time ~: 14 ms<br />
- Max memory:7.3220672607421875 MB<br />
+ Total time ~: 7 ms<br />
+ Max memory:6.441993713378906 MB<br />
  
 ========== NAFCP - STATS ============<br />
  Minsup : 3<br />
