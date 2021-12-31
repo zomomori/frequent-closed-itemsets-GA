@@ -1,6 +1,6 @@
 # frequent-closed-itemsets-Genetic-Algorithm
 
-Parameters that need to be altered: max_improvement_count (number of times crossover is performed without obtaining a offspring not already present in the sub population, before moving to the next generation) // Frin testing, output time is highly dependent on this parameter
+Parameters that need to be altered: max_improvement_count (number of times crossover is performed without obtaining a offspring not already present in the sub population, before moving to the next generation) // From testing, output time is highly dependent on this parameter
 
 NOTES:
 - Selection of parents is ranked selection, based on frequency (more frequency -> higher chance of getting picked for crossing)
