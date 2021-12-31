@@ -13,54 +13,54 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 public class GACFI_algo {
-	final int pop_size = 100;//the size of population 
-	final int max_iter = 2000;// maximum iterations 
+	int max_improvement_count = 20; // maximum iterations allowed for a subpopulation
 
-	ProductDb pDB; 
-	int maxDigit; //size of the bitsets
-	int minSupport; //Minimum support threshold
+	ProductDb pDB;
+	int totalItems; // Total number of Items in a set
+	int minSupport; // Minimum support threshold
+	int no_improvement_count = 0; // counter for no improvement of result
 
 	List<FCI> population = new ArrayList<FCI>();
 	List<FCI> subPopulation = new ArrayList<FCI>();
 
-	int numOfTrans; // number of transactions
-	int outputCount; // output total number of closed frequent itemsets
-
-	/** List of frequent closed itemsets */
-	Map<BitSet, Integer> fcis = new LinkedHashMap<>();
+	/** Hashmap for frequent closed itemsets indexed by frequency **/
 	Map<Integer, ArrayList<BitSet>> closedItemsets = new LinkedHashMap<>();
 
-	long startTimestamp; //start time of the last algorithm execution
-	long endTimestamp; //end time of the last algorithm execution
-
-	BufferedWriter writer = null; //object to write the output file
+	/** Result parameters **/
+	BufferedWriter writer = null; // object to write the output file
+	int numOfTrans; // number of transactions
+	int outputCount; // output total number of closed frequent itemsets
+	int fcis_1_size; // 1 fcs size
+	long startTimestamp; // start time of the last algorithm execution
+	long endTimestamp; // end time of the last algorithm execution
+	
+	List<FCI> resultList = new ArrayList<FCI>();
 
 	public GACFI_algo() {
 
 	}
 
-	/** Read the input file */
+	/** Method to read the input file */
 	ProductDb readFile(String filename) throws IOException {
 		ProductDb pDb = new ProductDb();
-
 		BufferedReader reader = new BufferedReader(new FileReader(filename));
 		String line;
-
-		maxDigit = 0;
+		totalItems = 0;
 
 		int item;
 		while (((line = reader.readLine()) != null)) {
 			if (line.isEmpty() == true || line.charAt(0) == '#' || line.charAt(0) == '%' || line.charAt(0) == '@') {
 				continue;
 			}
-
 			FCI entry = new FCI();
 			String[] lineSplited = line.split(" ");
 			for (String itemString : lineSplited) {
 				item = Integer.parseInt(itemString) - 1;
-				if (item > maxDigit) maxDigit = item;
+				if (item > totalItems)
+					totalItems = item;
 				entry.bitset.set(item);
 			}
 			pDb.products.add(entry);
@@ -73,7 +73,6 @@ public class GACFI_algo {
 	 * Run the algorithm
 	 */
 	public void runAlgorithm(String filename, double minSupport, String output) throws IOException {
-
 		MemoryLogger.getInstance().reset();
 
 		// create object for writing the output file
@@ -81,184 +80,170 @@ public class GACFI_algo {
 
 		// record the start time
 		startTimestamp = System.currentTimeMillis();
-		// ==========================
-		
-		
+
 		pDB = readFile(filename);
 		numOfTrans = pDB.products.size();
-		
+
 		// calculate the minSupport
 		this.minSupport = (int) Math.ceil(pDB.products.size() * minSupport);
 
-		// scan database (1) to calculate frequency of each Item
-		// The count of items is stored in map where
-		// key = item value = count count
-		Map<Integer, Integer> mapItemCount = new HashMap<Integer, Integer>();
-		for (int i = 0; i < pDB.products.size(); i++) {
-			FCI item = pDB.products.get(i);
-			for (int j = 0; j <= maxDigit; ++j) {
-				if (item.bitset.get(j)) {
-					Integer count = mapItemCount.get(j);
-					if (count == null) {
-						mapItemCount.put(j, 1);
-					} else {
-						mapItemCount.put(j, ++count);
-					}
-				}
-			}
-		}
-
-		for (Map.Entry<Integer, Integer> entry : mapItemCount.entrySet()) {
+		// calculate and add the order 1-FCIs to initial population
+		for (int i = 0; i <= totalItems; ++i) {
+			BitSet bitset = new BitSet();
+			bitset.set(i);
+			
 			FCI newEntry = new FCI();
-			if (entry.getValue() >= this.minSupport) {
-				newEntry.bitset.set(entry.getKey());
-				newEntry.frequency = entry.getValue();
-				// add the order 1-FCIs to initial population
+			newEntry.bitset = bitset;
+			setFrequency(newEntry);
+			
+			if (newEntry.frequency >= this.minSupport) {
 				insert(newEntry);
 				population.add(newEntry);
 			}
 		}
+		fcis_1_size = population.size();
 
-		int temp1 = 0;
-		int temp2 = 0;
+		int selection_1 = 0;
+		int selection_2 = 0;
+		for (int i = 0; i < totalItems; ++i) {
+			while ((no_improvement_count < max_improvement_count)) {
+				selection_1 = selectChromosome();
+				selection_2 = selectChromosome();
 
-		for (int i = 0; i < max_iter; i++) {
-			while (subPopulation.size() < pop_size) {
-
-				// select two chromosomes from population
-				temp1 = selectChromosome();
-				temp2 = selectChromosome();
-
-				while (temp1 == temp2) {
-					temp2 = selectChromosome();
+				while (selection_1 == selection_2) {
+					selection_2 = selectChromosome();
 				}
-
-				// crossover the chromosomes and insert in subPopulation
-				crossover(temp1, temp2);
+				crossover(selection_1, selection_2, (i+1));
 			}
+			no_improvement_count = 0;
 
 			// get population for next iteration
-			subPopulation.addAll(population);
-			Collections.sort(subPopulation, fc.reversed()); //sort the population in order of frequency
-
-			for (int j = 0; j < pop_size; j++) {
-				population.set(j, subPopulation.get(j));
+			for (int j = 0; j < subPopulation.size(); ++j) {
+				insert(subPopulation.get(j));
 			}
-			subPopulation.clear();
+			population = new ArrayList<FCI>(resultList);
+			
+			subPopulation.clear();			
 		}
 
-		System.out.println("FINAL SET");
-		for (var entry : fcis.entrySet()) {
-			printBitset(entry.getKey());
-		    System.out.println("  /" + entry.getValue());
+		/** Generate output **/
+		System.out.println("Frequent closed-itemsets:");
+		outputCount = resultList.size();
+		for (int x = 0; x < resultList.size(); x++) {
+			printItemset(resultList.get(x).bitset);
 		}
-		
-		
+		System.out.println();
+		writer.close();
 		MemoryLogger.getInstance().checkMemory();
-		
-		// record the end time
 		endTimestamp = System.currentTimeMillis();
 	}
 
-
 	/**
-	 * Seclect a Chromosome from the population; weighted random
+	 * Method to select an itemset from the population for crossover
+	 *  weighted random based on frequency (Higher frequency -> more probability for selection)
 	 */
 	private int selectChromosome() {
-		int i, temp = 0;
-
-		double totalFrequency = 0.0;
-		for(i = 0; i < population.size(); ++i){
-			totalFrequency += population.get(i).frequency;
-		}
-
-		double randNum  = Math.random() * totalFrequency;
-		double countFrequency = 0.0;
-		for (i = 0; i < population.size(); i++) {
-			countFrequency += population.get(i).frequency;
-
-			if (countFrequency >= randNum) {
-				return i;
-			}
-		}
-		return temp;
+				int i, temp = 0;
+		
+				double totalFrequency = 0.0;
+				for (i = 0; i < population.size(); ++i) {
+					totalFrequency += population.get(i).frequency;
+				}
+		
+				double randNum = Math.random() * totalFrequency;
+				double countFrequency = 0.0;
+				for (i = 0; i < population.size(); i++) {
+					countFrequency += population.get(i).frequency;
+		
+					if (countFrequency >= randNum) {
+						return i;
+					}
+				}
+				return temp;
 	}
 
 	/**
-	 * Method to crossover population[temp1] and population[temp2]
+	 * Method to crossover population[selection1] and population[selection2] at position
 	 */
-	private void crossover(int temp1, int temp2) {
+	private void crossover(int selection_1, int selection_2, int position) {
 		int i = 0;
-		FCI temp1Chro = new FCI();
-		FCI temp2Chro = new FCI();
+		int flag = 0;
+		FCI offspring_1 = new FCI();
+		FCI offspring_2 = new FCI();
 
-		FCI tempNode;
-		boolean inserted = false;
+		FCI temp;
 
-		int position = (int) (Math.random() * maxDigit);// crossover position
-		
-		for (i = 0; i <= maxDigit; i++) {	// i <= position, crossover
+		//int position = (int) (Math.random() * totalItems);// crossover position
+
+		for (i = 0; i <= totalItems; i++) { // i <= position, crossover
 			if (i <= position) {
-				if ((population.get(temp2).bitset.get(i))) {
-					temp1Chro.bitset.set(i);
+				if ((population.get(selection_2).bitset.get(i))) {
+					offspring_1.bitset.set(i);
 				}
-				if ((population.get(temp1).bitset.get(i))) {
-					temp2Chro.bitset.set(i);
+				if ((population.get(selection_1).bitset.get(i))) {
+					offspring_2.bitset.set(i);
 				}
-			} else {						// i > position, not crossover
-				if ((population.get(temp1).bitset.get(i))) {
-					temp1Chro.bitset.set(i);
+			} else { // i > position, not crossover
+				if ((population.get(selection_1).bitset.get(i))) {
+					offspring_1.bitset.set(i);
 				}
-				if ((population.get(temp2).bitset.get(i))) {
-					temp2Chro.bitset.set(i);
+				if ((population.get(selection_2).bitset.get(i))) {
+					offspring_2.bitset.set(i);
 				}
 			}
-		}
-		
-		// if closed itemsets already exist, mutation
-		if (fcis.containsKey(temp1Chro.bitset)) {
-			temp1Chro.bitset = mutation(temp1Chro.bitset);
-		}
-		if (fcis.containsKey(temp2Chro.bitset)) {
-			temp2Chro.bitset = mutation(temp2Chro.bitset);
 		}
 
-		// insert crossed chromosomes into the subPopulation
-		if (temp1Chro.bitset.cardinality() > 0) {
-			tempNode = temp1Chro;
-			tempNode.frequency = freqCalculate(temp1Chro);
-			if (tempNode.frequency >= minSupport) {
-				inserted = insert(tempNode);
-			}
-			if (inserted) subPopulation.add(tempNode);
+		temp = offspring_1;
+		if (alreadyPresent(temp)) { 	// if itemset already exists, mutation
+			temp.bitset = mutation(temp.bitset);
 		}
-		if (temp2Chro.bitset.cardinality() > 0) {
-			tempNode = temp2Chro;
-			tempNode.frequency = freqCalculate(temp2Chro);
-			if (tempNode.frequency >= minSupport) {
-				inserted = insert(tempNode);
-			}
-			if (inserted) subPopulation.add(tempNode);
+		setFrequency(temp); 
+		if (!subPopulation.contains(temp) && (temp.frequency >= this.minSupport)) {
+			subPopulation.add(temp); // insert offspring into the subPopulation if frequency > minSupport
+			flag = 1;
+		}
+
+		temp = offspring_2;
+		if (alreadyPresent(temp)) { 	// if itemset already exists, mutation
+			temp.bitset = mutation(temp.bitset);
+		}
+		setFrequency(temp); 
+		if (!subPopulation.contains(temp) && (temp.frequency >= this.minSupport)) {
+			subPopulation.add(temp); // insert coffspring into the subPopulation if frequency > minSupport
+			flag = 1;
+		}
+		
+		// increment no improvement counter if no new offspring generated in subPopulation
+		if (flag == 0) {
+			++no_improvement_count;
+		} else {
+			no_improvement_count = 0;
 		}
 	}
-	
-	
-	// mutation of chromosome at a random index
+
+	/** function to check whether bitset is aleady present in population **/
+	private boolean alreadyPresent(FCI tempNode) {
+		return population.contains(tempNode) || subPopulation.contains(tempNode);
+	}
+
+	/** mutation of chromosome at a random index **/
 	private BitSet mutation(BitSet bitset) {
-		int temp = (int) (Math.random() * maxDigit);
+		int temp = (int) (Math.random() * totalItems);
 		bitset.set(temp, !bitset.get(temp));
 		return bitset;
 	}
 
-	/**
-	 * Method to calculate the frequency of a bitset in the transaction database
-	 */
-	private int freqCalculate(FCI tempChroNode) {
+	/** Method to set the frequency of a itemset from the transaction database */
+	private void setFrequency(FCI tempItemset) {
 		int p;
 		int freq = 0;
 		int flag;
 
-		BitSet bitSet = tempChroNode.bitset;
+		BitSet bitSet = tempItemset.bitset;
+		if (bitSet.cardinality() == 0) {
+			tempItemset.frequency = 0;
+			return;
+		}
 
 		for (p = 0; p < pDB.products.size(); p++) {
 			FCI item = pDB.products.get(p);
@@ -270,85 +255,89 @@ public class GACFI_algo {
 				}
 			}
 			if (flag == 1) {
-				freq ++;
+				freq++;
 			}
 		}
-		return freq;
+		tempItemset.frequency = freq;
 	}
-
 
 	/**
-	 * Method to insert a chromosome into the frequent-closed itemsets list
-	 */	
+	 * Method to insert an itemset into the result frequent-closed itemsets list
+	 * adjusts itemset list accordingly to account only for closed itemsets
+	 */
 	private boolean insert(FCI tempChroNode) {
-		if (!fcis.containsKey(tempChroNode.bitset)) { // if does not already exist
-			ArrayList<BitSet> list = closedItemsets.get(tempChroNode.frequency);
+		if (resultList.contains(tempChroNode)) return false; // not inserted
+		ArrayList<BitSet> list = closedItemsets.get(tempChroNode.frequency);
 
-			if (list == null) {
-				list = new ArrayList<BitSet>();
-			}
-
-			int carTemp = tempChroNode.bitset.cardinality();
-			int carIter;
-
-			boolean isSubset = false;
-
-			List<Integer> toRemove = new ArrayList<Integer>();
-
-			BitSet x, y;
-
-			for (int j = 0; j < list.size(); ++j) {
-				BitSet b = list.get(j);
-				carIter = b.cardinality();
-				if (carIter < carTemp) {
-					y = b;
-					x = tempChroNode.bitset;
-					isSubset = false;
-				} else if (carIter > carTemp) {
-					y = tempChroNode.bitset;
-					x = b;
-					isSubset = true;
-				} else {
-					continue;
-				}
-
-				int flag = 1;
-				for (int i = y.nextSetBit(0); i != -1; i = y.nextSetBit(i + 1)) {
-					if (!x.get(i)) {
-						flag = 0; // the bitset was different
-						break;
-					}
-				}
-				if (flag == 1 && isSubset) { //bitset to be inserted is a subset of 
-					return false;			 //a bitset of same frequency, exit
-				}
-				if (flag == 1 && !isSubset) { //another bitset of the same frequency is a subset
-					toRemove.add(j);		  //of our bitset to be inserted, add to delete list
-				}
-			}
-
-			for(Integer i : toRemove) { // remove all the subsets of same frequency
-				fcis.remove(list.get(i));
-				list.remove(i);
-			}
-
-			list.add(tempChroNode.bitset); // add the bitset to be inserted in the FCI list
-			fcis.put(tempChroNode.bitset, tempChroNode.frequency);
-			closedItemsets.put(tempChroNode.frequency, list);
-			
-			return true; // inserted
+		if (list == null) {
+			list = new ArrayList<BitSet>();
 		}
-		return false; // couldn't insert
+
+		int carTemp = tempChroNode.bitset.cardinality();
+		int carIter;
+
+		boolean isSubset = false;
+
+		List<Integer> toRemove = new ArrayList<Integer>();
+
+		BitSet x, y;
+		FCI delete = new FCI();
+
+		for (int j = 0; j < list.size(); ++j) {
+			BitSet b = list.get(j);
+			carIter = b.cardinality();
+			if (carIter < carTemp) {
+				y = b;
+				x = tempChroNode.bitset;
+				isSubset = false;
+			} else if (carIter > carTemp) {
+				y = tempChroNode.bitset;
+				x = b;
+				isSubset = true;
+			} else {
+				continue;
+			}
+
+			int flag = 1;
+			for (int i = y.nextSetBit(0); i != -1; i = y.nextSetBit(i + 1)) {
+				if (!x.get(i)) {
+					flag = 0; // the itemset was different
+					break;
+				}
+			}
+			if (flag == 1 && isSubset) { // itemset to be inserted is a subset of
+				return false; // a itemset of same frequency -> exit, not inserted
+			}
+			if (flag == 1 && !isSubset) { // another itemset of the same frequency is a subset
+				toRemove.add(j); // of our itemset to be inserted -> add to delete list
+			}
+		}
+		Collections.sort(toRemove, Collections.reverseOrder());
+		for (Integer i : toRemove) { // remove all the same frequency subsets of the itemset to be inserted
+			delete.bitset = list.get(i);
+			resultList.remove(delete);
+			list.remove(delete.bitset);
+		}
+
+		list.add(tempChroNode.bitset); // add the itemset to be inserted in the FCI list
+		resultList.add(tempChroNode);
+		closedItemsets.put(tempChroNode.frequency, list);
+		return true; // inserted
 	}
 
-	/** PLEASE IGNORE - method for testing 
-	 * Prints a bitset
+	/**
+	 * method to print an itemset in the console as well as output file
+	 * @throws IOException 
 	 */
-	private void printBitset(BitSet bitset) {
-		for (int i = 0; i <= maxDigit; ++i) {
-			int k = bitset.get(i) ? 1 : 0;
-			System.out.print(k);
+	private void printItemset(BitSet bitset) throws IOException {
+		for (int i = 0; i <= totalItems; ++i) {
+			if (bitset.get(i)) {
+				System.out.print((i + 1) + " ");
+				writer.write((i + '1') + " ");
+			}
 		}
+		System.out.println();
+		writer.write("\n");
 	}
 
 	/**
@@ -358,17 +347,15 @@ public class GACFI_algo {
 		System.out.println("========== GA-FCI - STATS ============");
 		System.out.println(" Minsup : " + this.minSupport);
 		System.out.println(" Number of transactions: " + numOfTrans);
-		//System.out.println(" Number of frequent 1-items  : " + fcis_1.size());
+		System.out.println(" Number of frequent 1-items  : " + fcis_1_size);
 		System.out.println(" Number of closed  itemsets: " + outputCount);
 		System.out.println(" Total time ~: " + (endTimestamp - startTimestamp) + " ms");
 		System.out.println(" Max memory:" + MemoryLogger.getInstance().getMaxMemory() + " MB");
 		System.out.println("=====================================");
 	}
 
+	// ============================
 
-	//============================
-	
-	
 	/** Class representing a product database */
 	class ProductDb {
 		List<FCI> products;
@@ -378,8 +365,8 @@ public class GACFI_algo {
 		}
 	}
 
-	//============================
-	
+	// ============================
+
 	/** Class representing a frequent closed itemset */
 	class FCI {
 		BitSet bitset;
@@ -388,7 +375,28 @@ public class GACFI_algo {
 		public FCI() {
 			bitset = new BitSet();
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (o == this) {
+				return true;
+			}
+			/*
+			 * Check if o is an instance of Complex or not "null instanceof [type]" also
+			 * returns false
+			 */
+			if (!(o instanceof FCI)) {
+				return false;
+			}
+
+			// typecast o to Complex so that we can compare data members
+			FCI c = (FCI) o;
+
+			// Compare the data members and return accordingly
+			return this.bitset.equals(c.bitset);
+		}
 	}
+
 	static Comparator<FCI> fc = new Comparator<FCI>() {
 		@Override
 		public int compare(FCI x, FCI y) {
@@ -403,4 +411,4 @@ public class GACFI_algo {
 		}
 	};
 }
-//============================
+//==========================================================

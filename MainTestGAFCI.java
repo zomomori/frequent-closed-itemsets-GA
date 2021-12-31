@@ -23,6 +23,7 @@ public class MainTestGAFCI {
        GACFI_algo algorithm = new GACFI_algo();
 
         algorithm.runAlgorithm(input, minsup, output);
+        algorithm.printStats();
     }
 
     public static String fileToPath(String filename) throws UnsupportedEncodingException {
