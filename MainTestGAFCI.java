@@ -17,7 +17,7 @@ public class MainTestGAFCI {
 		String input = fileToPath("input.txt");
         String output = "output.txt";
 
-        double minsup = 0.4; // means a minsup of 2 transaction (we used a relative count)
+        double minsup = 0.01; // (we used a relative count)
 
         // Applying the algorithm
        GACFI_algo algorithm = new GACFI_algo();

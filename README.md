@@ -1,20 +1,45 @@
 # frequent-closed-itemsets-Genetic-Algorithm
 
-Parameters that need to be altered: max_improvement_count (number of times crossover is performed without obtaining a offspring not already present in the sub population, before moving to the next generation) // From testing, output time is highly dependent on this parameter
+-------------------------------UPDATE------------------------------------
+=========================================================================
+ Tested with database: <br /><br />
+
+========== NAFCP - STATS ============<br />
+ Minsup : 99<br />
+ Number of transactions: 9835<br />
+ Number of frequent 1-items  : 88<br />
+ Number of closed  itemsets: 333<br />
+ Total time ~: 117 ms<br />
+ Max memory:14.487472534179688 MB<br />
+========== GA-FCI - STATS ===========<br />
+ Minsup : 99<br />
+ Number of transactions: 9835<br />
+ Number of frequent 1-items  : 88<br />
+ Number of closed  itemsets: 333<br />
+ Total time ~: 361 ms<br />
+ Max memory: 14.441978454589844 MB<br />
+=====================================<br />
+Crossover time: 282 ms; Crossover calls: 13257<br />
+Frequency calclated from database time: 251 ms; calls made: 2877<br />
+Frequency calclated from anti-monotonicity time: 13 ms; calls made: 16844<br /> 
+
+-------------------------------------------------------------------------
+
+TO DO:
+- Possible optimization
+- Decrease time for calculating frequency from database
 
 NOTES:
 - Selection of parents is ranked selection, based on frequency (more frequency -> higher chance of getting picked for crossing)
 - Mutation if done when offspring is already present in population (one random bit is reversed)
 - When max_improvement_count is reached, we move to the next generation
 - Population for the next generation is the resulting frequent-closed itemset list obtained
-
-TO DO:
-- Determining criteria of max_improvement_count for each query
-- Comparison with larger/real-world datasets
-- Possible optimization
+- Parameters that need to be altered before running: 
+    - max_improvement_count (number of times crossover is performed without obtaining a offspring not already present in the sub population, before moving to the next generation)
+    - population size
 
 
-Comparison With NA-FCP
+Comparison With NA-FCP (old)
 ==========================================
 
 INPUT:<br />
