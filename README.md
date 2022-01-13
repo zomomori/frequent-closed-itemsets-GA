@@ -1,9 +1,7 @@
 # frequent-closed-itemsets-Genetic-Algorithm
 
--------------------------------UPDATE------------------------------------
-=========================================================================
- Tested with database: <br /><br />
-
+-------------------------------UPDATE------------------------------------<br />
+ Tested with database: https://www.kaggle.com/ekrembayar/apriori-association-rules-grocery-store/data?select=Grocery+Products+Purchase.csv<br /><br />
 ========== NAFCP - STATS ============<br />
  Minsup : 99<br />
  Number of transactions: 9835<br />
@@ -18,7 +16,7 @@
  Number of closed  itemsets: 333<br />
  Total time ~: 361 ms<br />
  Max memory: 14.441978454589844 MB<br />
-=====================================<br />
+===============================<br />
 Crossover time: 282 ms; Crossover calls: 13257<br />
 Frequency calclated from database time: 251 ms; calls made: 2877<br />
 Frequency calclated from anti-monotonicity time: 13 ms; calls made: 16844<br /> 
