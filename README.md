@@ -18,8 +18,8 @@
  Max memory: 14.441978454589844 MB<br />
 ===============================<br />
 Crossover time: 282 ms; Crossover calls: 13257<br />
-Frequency calclated from database time: 251 ms; calls made: 2877<br />
-Frequency calclated from anti-monotonicity time: 13 ms; calls made: 16844<br /> 
+Frequency calculated from database time: 251 ms; calls made: 2877<br />
+Frequency calculated from anti-monotonicity time: 13 ms; calls made: 16844<br /> 
 
 -------------------------------------------------------------------------
 
